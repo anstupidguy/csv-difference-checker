@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Diff Master Pro - Advanced Difference Checker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f0f7ff', 100: '#e0effe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- PapaParse for robust CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+        .dark ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(107, 114, 128, 0.8); }
+        .sync-scroll { overflow: auto; }
+        .sticky-header th { position: sticky; top: 0; z-index: 10; }
+        .kbd-badge {
+            background: rgba(156, 163, 175, 0.2);
+            border: 1px solid rgba(156, 163, 175, 0.4);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- HEADER -->
+    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg">
+                    <i data-lucide="file-diff" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-bold text-lg leading-tight">CSV Diff Inspector Pro</h1>
+                        <span class="px-2 py-0.5 text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-full font-semibold flex items-center gap-1" title="100% Client-Side Local Processing - Zero Server Uploads">
+                            <i data-lucide="shield-check" class="w-3 h-3"></i> 100% Local Private
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Reconcile, sanitize & compare tabular datasets securely</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="loadSampleData()" class="text-xs font-medium px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition flex items-center space-x-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Load Demo Data</span>
+                </button>
+                <button onclick="wipeSessionData()" class="text-xs font-medium px-2.5 py-1.5 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/60 transition flex items-center space-x-1.5" title="Wipe all parsed files from RAM">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Wipe Memory</span>
+                </button>
+                <button onclick="toggleTheme()" class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Toggle Dark/Light Mode">
+                    <i data-lucide="moon" id="themeIcon" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col space-y-6">
+
+        <!-- SECURITY & PRIVACY ADVISORY BANNER -->
+        <div id="securityBanner" class="bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-3.5 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200">
+            <div class="flex items-center space-x-3">
+                <i data-lucide="lock" class="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0"></i>
+                <div>
+                    <span class="font-bold">Air-Gapped Privacy & Formula Security:</span>
+                    <span> Files remain on your machine in local memory. Auto-sanitization prevents Excel formula injection attacks (=CMD, =HYPERLINK).</span>
+                </div>
+            </div>
+            <button onclick="document.getElementById('securityBanner').remove()" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 p-1">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- FILE INPUT SECTION -->
+        <section id="uploadSection" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- File A Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 flex flex-col items-center justify-center text-center hover:border-blue-500 dark:hover:border-blue-400 transition cursor-pointer relative group" id="dropZoneA" onclick="document.getElementById('fileInputA').click()">
+                <input type="file" id="fileInputA" accept=".csv, .txt, .tsv" class="hidden" onchange="handleFileSelect(event, 'A')">
+                <div class="p-3 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                    <i data-lucide="file-text" class="w-8 h-8"></i>
+                </div>
+                <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-1" id="fileAName">Baseline CSV (File A)</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3" id="fileAInfo">Original or previous version of your file</p>
+                <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full">Drag & Drop or Click</span>
+            </div>
+
+            <!-- File B Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 p-6 flex flex-col items-center justify-center text-center hover:border-blue-500 dark:hover:border-blue-400 transition cursor-pointer relative group" id="dropZoneB" onclick="document.getElementById('fileInputB').click()">
+                <input type="file" id="fileInputB" accept=".csv, .txt, .tsv" class="hidden" onchange="handleFileSelect(event, 'B')">
+                <div class="p-3 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                    <i data-lucide="file-text" class="w-8 h-8"></i>
+                </div>
+                <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-1" id="fileBName">Modified CSV (File B)</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3" id="fileBInfo">Updated or new version of your file</p>
+                <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full">Drag & Drop or Click</span>
+            </div>
+        </section>
+
+        <!-- CONFIGURATION BAR & MAPPING (HIDDEN UNTIL LOADED) -->
+        <section id="configBar" class="hidden bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
+            <div class="flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex items-center space-x-4 flex-wrap gap-y-2">
+                    <!-- Composite Primary Key Selector -->
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider flex items-center space-x-1">
+                            <i data-lucide="key" class="w-3.5 h-3.5"></i>
+                            <span>Primary Key(s):</span>
+                        </label>
+                        <div id="keySelectorContainer" class="relative">
+                            <button onclick="toggleKeyDropdown()" id="keyDropdownBtn" class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 text-xs rounded-lg px-3 py-1.5 font-medium flex items-center space-x-2">
+                                <span id="selectedKeysLabel">Sequential Row Number</span>
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <div id="keyDropdown" class="hidden absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-40 p-2 max-h-60 overflow-y-auto space-y-1">
+                                <!-- Dynamic Checkboxes -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column Mapper Modal Trigger -->
+                    <button onclick="openColumnMapper()" class="px-2.5 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition flex items-center space-x-1">
+                        <i data-lucide="git-merge" class="w-3.5 h-3.5"></i>
+                        <span>Align Header Names</span>
+                    </button>
+                </div>
+
+                <!-- View Mode Layout Selector -->
+                <div class="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                    <button id="btnSideBySide" onclick="setViewMode('side-by-side')" class="px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm transition flex items-center space-x-1">
+                        <i data-lucide="columns" class="w-3.5 h-3.5"></i>
+                        <span>Side-by-Side</span>
+                    </button>
+                    <button id="btnUnified" onclick="setViewMode('unified')" class="px-3 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition flex items-center space-x-1">
+                        <i data-lucide="rows" class="w-3.5 h-3.5"></i>
+                        <span>Unified Diff</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TOLERANCES & PRIVACY TOGGLES -->
+            <div class="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex flex-wrap items-center justify-between gap-4 text-xs">
+                <div class="flex items-center space-x-4 flex-wrap gap-y-2">
+                    <!-- Case Sensitivity -->
+                    <label class="inline-flex items-center cursor-pointer text-gray-600 dark:text-gray-300">
+                        <input type="checkbox" id="caseSensitive" onchange="triggerComparison()" class="sr-only peer">
+                        <div class="relative w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        <span class="ms-1.5">Case-Sensitive</span>
+                    </label>
+
+                    <!-- Trim Whitespace -->
+                    <label class="inline-flex items-center cursor-pointer text-gray-600 dark:text-gray-300">
+                        <input type="checkbox" id="ignoreWhitespace" checked onchange="triggerComparison()" class="sr-only peer">
+                        <div class="relative w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        <span class="ms-1.5">Trim Whitespace</span>
+                    </label>
+
+                    <!-- Numeric Tolerance -->
+                    <div class="flex items-center space-x-1.5 text-gray-600 dark:text-gray-300">
+                        <span>Numeric Tolerance:</span>
+                        <input type="number" id="numTolerance" value="0.00" step="0.01" min="0" onchange="triggerComparison()" class="w-16 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs text-center">
+                    </div>
+
+                    <!-- Sensitive Data Redaction / PII Masking -->
+                    <label class="inline-flex items-center cursor-pointer text-amber-600 dark:text-amber-400 font-medium">
+                        <input type="checkbox" id="maskPII" onchange="triggerComparison()" class="sr-only peer">
+                        <div class="relative w-7 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-gray-600 peer-checked:bg-amber-600"></div>
+                        <span class="ms-1.5 flex items-center space-x-1">
+                            <i data-lucide="eye-off" class="w-3.5 h-3.5"></i>
+                            <span>Mask PII / Sensitive Data</span>
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Keyboard Nav Hints -->
+                <div class="hidden lg:flex items-center space-x-2 text-gray-400 text-[11px]">
+                    <span>Jump diffs:</span>
+                    <span class="kbd-badge">N</span> <span>Next</span>
+                    <span class="kbd-badge">P</span> <span>Prev</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- SUMMARY METRICS DASHBOARD -->
+        <section id="summaryDashboard" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm text-center">
+                <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Similarity Score</span>
+                <p id="statSimilarity" class="text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">100%</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm text-center">
+                <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Total Baseline (A)</span>
+                <p id="statTotalA" class="text-xl font-bold text-gray-700 dark:text-gray-200 mt-0.5">0</p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm text-center">
+                <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Total Modified (B)</span>
+                <p id="statTotalB" class="text-xl font-bold text-gray-700 dark:text-gray-200 mt-0.5">0</p>
+            </div>
+            <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-xl p-3 text-center">
+                <span class="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Added Rows</span>
+                <p id="statAdded" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">0</p>
+            </div>
+            <div class="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/50 rounded-xl p-3 text-center">
+                <span class="text-xs text-rose-700 dark:text-rose-400 font-medium">Removed Rows</span>
+                <p id="statRemoved" class="text-xl font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">0</p>
+            </div>
+            <div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 text-center">
+                <span class="text-xs text-amber-700 dark:text-amber-400 font-medium">Modified Rows</span>
+                <p id="statModified" class="text-xl font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">0</p>
+            </div>
+        </section>
+
+        <!-- COLUMN IMPACT & ANALYTICS BAR -->
+        <section id="columnAnalytics" class="hidden bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center justify-between">
+                <span>Column Change Breakdown (Which fields changed most?)</span>
+                <span id="reconciledCountBadge" class="text-indigo-600 dark:text-indigo-400 font-normal">0 manual reconciliations made</span>
+            </div>
+            <div id="columnBarsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                <!-- Dynamic analytics bars -->
+            </div>
+        </section>
+
+        <!-- FILTER & SEARCH BAR -->
+        <section id="filterBar" class="hidden bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+            <div class="flex items-center space-x-2 flex-wrap gap-y-2 flex-1 min-w-[300px]">
+                <!-- Search Box -->
+                <div class="relative flex-1 max-w-xs">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-gray-400"></i>
+                    <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Search cells..." class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-xs rounded-lg pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <!-- Status Filter Pills -->
+                <div class="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-lg text-xs font-medium">
+                    <button onclick="setDiffFilter('all')" id="filterBtnAll" class="px-2.5 py-1 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white shadow-xs">All</button>
+                    <button onclick="setDiffFilter('diff')" id="filterBtnDiff" class="px-2.5 py-1 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900">Diffs Only</button>
+                    <button onclick="setDiffFilter('added')" id="filterBtnAdded" class="px-2.5 py-1 rounded-md text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100/50">Added</button>
+                    <button onclick="setDiffFilter('removed')" id="filterBtnRemoved" class="px-2.5 py-1 rounded-md text-rose-600 dark:text-rose-400 hover:bg-rose-100/50">Removed</button>
+                    <button onclick="setDiffFilter('modified')" id="filterBtnModified" class="px-2.5 py-1 rounded-md text-amber-600 dark:text-amber-400 hover:bg-amber-100/50">Modified</button>
+                </div>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="flex items-center space-x-2 flex-wrap gap-y-2">
+                <button onclick="copyMarkdownSummary()" class="px-3 py-1.5 text-xs font-medium bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 rounded-lg transition flex items-center space-x-1" title="Copy Markdown for Slack/GitHub">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Copy Markdown</span>
+                </button>
+                <button onclick="exportReconciledCSV()" class="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition flex items-center space-x-1 shadow-xs" title="Export reconciled merged dataset">
+                    <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+                    <span>Export Merged CSV</span>
+                </button>
+                <button onclick="exportDiffReport('csv')" class="px-2.5 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition flex items-center space-x-1">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span>Diff CSV</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- VISUAL DIFF RESULTS GRID -->
+        <section id="resultsContainer" class="hidden flex-1 min-h-[400px] flex flex-col">
+            <!-- Side-by-Side Table Container -->
+            <div id="sideBySideView" class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+                <!-- Left: Baseline (A) -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col overflow-hidden">
+                    <div class="px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 font-semibold text-xs text-gray-700 dark:text-gray-300 flex justify-between items-center">
+                        <span class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span>Baseline File (A)</span>
+                        </span>
+                        <span id="badgeCountA" class="text-gray-400 font-normal">0 rows</span>
+                    </div>
+                    <div class="sync-scroll flex-1 max-h-[600px] overflow-auto" id="scrollContainerA" onscroll="syncScroll('A')">
+                        <table class="w-full text-xs text-left border-collapse sticky-header" id="tableA">
+                            <thead class="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                                <tr id="theadA"></tr>
+                            </thead>
+                            <tbody id="tbodyA" class="divide-y divide-gray-100 dark:divide-gray-800 font-mono"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right: Modified (B) -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col overflow-hidden">
+                    <div class="px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 font-semibold text-xs text-gray-700 dark:text-gray-300 flex justify-between items-center">
+                        <span class="flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>Modified File (B)</span>
+                        </span>
+                        <span id="badgeCountB" class="text-gray-400 font-normal">0 rows</span>
+                    </div>
+                    <div class="sync-scroll flex-1 max-h-[600px] overflow-auto" id="scrollContainerB" onscroll="syncScroll('B')">
+                        <table class="w-full text-xs text-left border-collapse sticky-header" id="tableB">
+                            <thead class="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                                <tr id="theadB"></tr>
+                            </thead>
+                            <tbody id="tbodyB" class="divide-y divide-gray-100 dark:divide-gray-800 font-mono"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unified Table Container -->
+            <div id="unifiedView" class="hidden bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col overflow-hidden flex-1">
+                <div class="px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 font-semibold text-xs text-gray-700 dark:text-gray-300 flex justify-between items-center">
+                    <span>Unified Difference Log</span>
+                    <span id="badgeCountUnified" class="text-gray-400 font-normal">0 entries</span>
+                </div>
+                <div class="flex-1 max-h-[600px] overflow-auto">
+                    <table class="w-full text-xs text-left border-collapse sticky-header" id="tableUnified">
+                        <thead class="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                            <tr id="theadUnified"></tr>
+                        </thead>
+                        <tbody id="tbodyUnified" class="divide-y divide-gray-100 dark:divide-gray-800 font-mono"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- EMPTY STATE GRAPHIC -->
+        <section id="emptyState" class="bg-white dark:bg-gray-800 rounded-xl p-12 text-center border border-gray-200 dark:border-gray-700 shadow-xs flex flex-col items-center justify-center my-auto">
+            <div class="w-16 h-16 bg-blue-50 dark:bg-blue-950/40 text-blue-500 rounded-full flex items-center justify-center mb-4">
+                <i data-lucide="arrow-up-down" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-1">No Files Loaded Yet</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6">Upload both CSV File A and CSV File B above, or click below to generate sample customer databases for demonstration.</p>
+            <button onclick="loadSampleData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-lg shadow-sm transition flex items-center space-x-2">
+                <i data-lucide="play" class="w-4 h-4"></i>
+                <span>Run with Demo Data</span>
+            </button>
+        </section>
+    </main>
+
+    <!-- COLUMN MAPPER MODAL -->
+    <div id="columnMapperModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full p-6 border border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+                <h3 class="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+                    <i data-lucide="git-merge" class="w-4 h-4 text-blue-500"></i>
+                    <span>Map Mismatched Header Names</span>
+                </h3>
+                <button onclick="closeColumnMapper()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">If File A and File B use different column headers for the same data (e.g., "Email" vs "UserEmail"), align them below:</p>
+            <div id="mapperContainer" class="max-h-60 overflow-y-auto space-y-2 text-xs">
+                <!-- Dynamic Header Dropdowns -->
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <button onclick="closeColumnMapper()" class="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg">Cancel</button>
+                <button onclick="applyColumnMappings()" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium">Apply Alignment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-3 text-center text-xs text-gray-500 dark:text-gray-400 mt-auto">
+        <p>CSV Difference Checker — Client-side processing with formula injection defense.</p>
+    </footer>
+
+    <!-- JAVASCRIPT CORE LOGIC -->
+    <script>
+        // State Management Variables
+        let state = {
+            parsedA: null,
+            parsedB: null,
+            columnMappings: {}, // { headerInB: mappedHeaderInA }
+            selectedKeys: ['__INDEX__'],
+            comparisonResult: null,
+            reconciledSelections: {}, // { key: { colName: 'A' | 'B' } }
+            viewMode: 'side-by-side',
+            diffFilter: 'all',
+            isSyncingScroll: false,
+            currentDiffNavIdx: -1
+        };
+
+        // Initialize Lucide Icons on Load
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            setupDragAndDrop();
+            setupKeyboardNav();
+        });
+
+        // Toggle Dark/Light Mode
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                themeIcon.setAttribute('data-lucide', 'moon');
+            } else {
+                html.classList.add('dark');
+                themeIcon.setAttribute('data-lucide', 'sun');
+            }
+            lucide.createIcons();
+        }
+
+        // Setup Drag and Drop Listeners
+        function setupDragAndDrop() {
+            ['dropZoneA', 'dropZoneB'].forEach((id, idx) => {
+                const zone = document.getElementById(id);
+                const targetFile = idx === 0 ? 'A' : 'B';
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    zone.addEventListener(eventName, (e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        zone.classList.add('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-950/20');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    zone.addEventListener(eventName, (e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        zone.classList.remove('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-950/20');
+                    }, false);
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) processSelectedFile(files[0], targetFile);
+                });
+            });
+        }
+
+        // Keyboard Shortcuts Navigation
+        function setupKeyboardNav() {
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+                
+                if (e.key === 'n' || e.key === 'N') {
+                    navigateDiff(1);
+                } else if (e.key === 'p' || e.key === 'P') {
+                    navigateDiff(-1);
+                } else if (e.key === 'Escape') {
+                    closeColumnMapper();
+                }
+            });
+        }
+
+        // Navigate between differences
+        function navigateDiff(direction) {
+            if (!state.comparisonResult) return;
+            const diffRows = Array.from(document.querySelectorAll('#tbodyA tr')).filter(tr => tr.dataset.isDiff === 'true');
+            if (diffRows.length === 0) return;
+
+            state.currentDiffNavIdx = (state.currentDiffNavIdx + direction + diffRows.length) % diffRows.length;
+            const target = diffRows[state.currentDiffNavIdx];
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('ring-2', 'ring-blue-500');
+            setTimeout(() => target.classList.remove('ring-2', 'ring-blue-500'), 1500);
+        }
+
+        // Parse Selected File with PapaParse
+        function handleFileSelect(event, target) {
+            const file = event.target.files[0];
+            if (file) processSelectedFile(file, target);
+        }
+
+        function processSelectedFile(file, target) {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: 'greedy',
+                dynamicTyping: false,
+                complete: function(results) {
+                    const parsedData = {
+                        filename: file.name,
+                        headers: results.meta.fields || [],
+                        data: results.data || []
+                    };
+
+                    if (target === 'A') {
+                        state.parsedA = parsedData;
+                        document.getElementById('fileAName').innerText = file.name;
+                        document.getElementById('fileAInfo').innerText = `${parsedData.data.length} rows • ${parsedData.headers.length} cols`;
+                    } else {
+                        state.parsedB = parsedData;
+                        document.getElementById('fileBName').innerText = file.name;
+                        document.getElementById('fileBInfo').innerText = `${parsedData.data.length} rows • ${parsedData.headers.length} cols`;
+                    }
+
+                    checkFilesReady();
+                },
+                error: (err) => alert('Error parsing CSV file: ' + err.message)
+            });
+        }
+
+        // Wipe RAM / Session Data
+        function wipeSessionData() {
+            state.parsedA = null;
+            state.parsedB = null;
+            state.comparisonResult = null;
+            state.reconciledSelections = {};
+
+            document.getElementById('fileAName').innerText = "Baseline CSV (File A)";
+            document.getElementById('fileAInfo').innerText = "Original or previous version of your file";
+            document.getElementById('fileBName').innerText = "Modified CSV (File B)";
+            document.getElementById('fileBInfo').innerText = "Updated or new version of your file";
+
+            document.getElementById('fileInputA').value = '';
+            document.getElementById('fileInputB').value = '';
+
+            document.getElementById('configBar').classList.add('hidden');
+            document.getElementById('summaryDashboard').classList.add('hidden');
+            document.getElementById('columnAnalytics').classList.add('hidden');
+            document.getElementById('filterBar').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+        }
+
+        function checkFilesReady() {
+            if (state.parsedA && state.parsedB) {
+                populateKeyDropdown();
+                document.getElementById('configBar').classList.remove('hidden');
+                document.getElementById('summaryDashboard').classList.remove('hidden');
+                document.getElementById('columnAnalytics').classList.remove('hidden');
+                document.getElementById('filterBar').classList.remove('hidden');
+                document.getElementById('resultsContainer').classList.remove('hidden');
+                document.getElementById('emptyState').classList.add('hidden');
+                triggerComparison();
+            }
+        }
+
+        // Composite Key Selector Setup
+        function populateKeyDropdown() {
+            const dropdown = document.getElementById('keyDropdown');
+            dropdown.innerHTML = '';
+
+            const headersA = state.parsedA ? state.parsedA.headers : [];
+            const headersB = state.parsedB ? state.parsedB.headers : [];
+            const commonHeaders = headersA.filter(h => headersB.includes(h) || state.columnMappings[h]);
+
+            // Sequential Row Number Option
+            const idxDiv = document.createElement('label');
+            idxDiv.className = "flex items-center space-x-2 text-xs p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer";
+            idxDiv.innerHTML = `<input type="checkbox" value="__INDEX__" ${state.selectedKeys.includes('__INDEX__') ? 'checked' : ''} onchange="handleKeySelectionChange(this)">
+                <span>Sequential Row Number</span>`;
+            dropdown.appendChild(idxDiv);
+
+            commonHeaders.forEach(header => {
+                const item = document.createElement('label');
+                item.className = "flex items-center space-x-2 text-xs p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer";
+                item.innerHTML = `<input type="checkbox" value="${header}" ${state.selectedKeys.includes(header) ? 'checked' : ''} onchange="handleKeySelectionChange(this)">
+                    <span>${header}</span>`;
+                dropdown.appendChild(item);
+            });
+        }
+
+        function toggleKeyDropdown() {
+            document.getElementById('keyDropdown').classList.toggle('hidden');
+        }
+
+        function handleKeySelectionChange(checkbox) {
+            const val = checkbox.value;
+            if (val === '__INDEX__') {
+                state.selectedKeys = ['__INDEX__'];
+                populateKeyDropdown();
+            } else {
+                state.selectedKeys = state.selectedKeys.filter(k => k !== '__INDEX__');
+                if (checkbox.checked) {
+                    state.selectedKeys.push(val);
+                } else {
+                    state.selectedKeys = state.selectedKeys.filter(k => k !== val);
+                }
+                if (state.selectedKeys.length === 0) state.selectedKeys = ['__INDEX__'];
+            }
+
+            document.getElementById('selectedKeysLabel').innerText = state.selectedKeys.join(' + ');
+            triggerComparison();
+        }
+
+        // Formula Injection & XSS Sanitizer Guard
+        function sanitizeCellValue(val) {
+            if (val === null || val === undefined) return '';
+            let str = String(val);
+            // CSV Injection Guard: escape formula triggers
+            if (/^[=+\-@\t\r]/.test(str)) {
+                return "'" + str;
+            }
+            return str;
+        }
+
+        // Sensitive Data / PII Masking
+        function maskIfSensitive(colName, val) {
+            if (!document.getElementById('maskPII').checked) return val;
+            const lower = colName.toLowerCase();
+            const sensitiveKeywords = ['ssn', 'password', 'pwd', 'secret', 'credit', 'card', 'cvv', 'phone', 'email'];
+            if (sensitiveKeywords.some(kw => lower.includes(kw))) {
+                return '••••••••';
+            }
+            return val;
+        }
+
+        // Core Comparison Engine
+        function triggerComparison() {
+            if (!state.parsedA || !state.parsedB) return;
+
+            const caseSensitive = document.getElementById('caseSensitive').checked;
+            const ignoreWhitespace = document.getElementById('ignoreWhitespace').checked;
+            const numTolerance = parseFloat(document.getElementById('numTolerance').value) || 0;
+
+            const normalize = (val) => {
+                if (val === null || val === undefined) return '';
+                let str = String(val);
+                if (ignoreWhitespace) str = str.trim();
+                if (!caseSensitive) str = str.toLowerCase();
+                return str;
+            };
+
+            const isNumericallyEqual = (v1, v2) => {
+                const n1 = parseFloat(v1);
+                const n2 = parseFloat(v2);
+                if (!isNaN(n1) && !isNaN(n2)) {
+                    return Math.abs(n1 - n2) <= numTolerance;
+                }
+                return false;
+            };
+
+            const dataA = state.parsedA.data;
+            const dataB = state.parsedB.data;
+
+            // Header Consolidation considering manual column mapping
+            const headersA = state.parsedA.headers;
+            const headersB = state.parsedB.headers;
+            const allHeaders = Array.from(new Set([...headersA, ...headersB]));
+
+            let rowsA_map = new Map();
+            let rowsB_map = new Map();
+
+            const getKeyStr = (row, idx) => {
+                if (state.selectedKeys.includes('__INDEX__')) return idx;
+                return state.selectedKeys.map(k => normalize(row[k])).join(':::');
+            };
+
+            dataA.forEach((row, idx) => rowsA_map.set(getKeyStr(row, idx), { row, originalIndex: idx }));
+            dataB.forEach((row, idx) => rowsB_map.set(getKeyStr(row, idx), { row, originalIndex: idx }));
+
+            let diffs = [];
+            let addedCount = 0, removedCount = 0, modifiedCount = 0, unchangedCount = 0;
+            let columnDiffStats = {};
+            allHeaders.forEach(h => columnDiffStats[h] = 0);
+
+            let processedKeysB = new Set();
+
+            rowsA_map.forEach((itemA, key) => {
+                if (rowsB_map.has(key)) {
+                    processedKeysB.add(key);
+                    const itemB = rowsB_map.get(key);
+                    let cellDiffs = {};
+                    let isRowModified = false;
+
+                    allHeaders.forEach(header => {
+                        const mappedHeaderB = state.columnMappings[header] || header;
+                        const rawA = itemA.row[header];
+                        const rawB = itemB.row[mappedHeaderB];
+
+                        const normA = normalize(rawA);
+                        const normB = normalize(rawB);
+
+                        let modified = false;
+                        if (normA !== normB) {
+                            if (!isNumericallyEqual(rawA, rawB)) {
+                                modified = true;
+                                isRowModified = true;
+                                columnDiffStats[header] = (columnDiffStats[header] || 0) + 1;
+                            }
+                        }
+
+                        cellDiffs[header] = { valA: rawA, valB: rawB, modified };
+                    });
+
+                    if (isRowModified) {
+                        modifiedCount++;
+                        diffs.push({ key, status: 'modified', rowA: itemA.row, rowB: itemB.row, cellDiffs, idxA: itemA.originalIndex, idxB: itemB.originalIndex });
+                    } else {
+                        unchangedCount++;
+                        diffs.push({ key, status: 'unchanged', rowA: itemA.row, rowB: itemB.row, cellDiffs, idxA: itemA.originalIndex, idxB: itemB.originalIndex });
+                    }
+                } else {
+                    removedCount++;
+                    let cellDiffs = {};
+                    allHeaders.forEach(h => cellDiffs[h] = { valA: itemA.row[h], valB: null, modified: true });
+                    diffs.push({ key, status: 'removed', rowA: itemA.row, rowB: null, cellDiffs, idxA: itemA.originalIndex, idxB: null });
+                }
+            });
+
+            rowsB_map.forEach((itemB, key) => {
+                if (!processedKeysB.has(key)) {
+                    addedCount++;
+                    let cellDiffs = {};
+                    allHeaders.forEach(h => cellDiffs[h] = { valA: null, valB: itemB.row[h], modified: true });
+                    diffs.push({ key, status: 'added', rowA: null, rowB: itemB.row, cellDiffs, idxA: null, idxB: itemB.originalIndex });
+                }
+            });
+
+            const totalCompared = dataA.length + addedCount;
+            const similarityPercent = totalCompared > 0 ? Math.round((unchangedCount / totalCompared) * 100) : 100;
+
+            state.comparisonResult = {
+                diffs,
+                allHeaders,
+                columnDiffStats,
+                stats: { totalA: dataA.length, totalB: dataB.length, added: addedCount, removed: removedCount, modified: modifiedCount, unchanged: unchangedCount, similarity: similarityPercent }
+            };
+
+            renderSummaryStats();
+            renderColumnAnalytics();
+            applyFilters();
+        }
+
+        // Render Summary Dashboard
+        function renderSummaryStats() {
+            const stats = state.comparisonResult.stats;
+            document.getElementById('statSimilarity').innerText = `${stats.similarity}%`;
+            document.getElementById('statTotalA').innerText = stats.totalA;
+            document.getElementById('statTotalB').innerText = stats.totalB;
+            document.getElementById('statAdded').innerText = stats.added;
+            document.getElementById('statRemoved').innerText = stats.removed;
+            document.getElementById('statModified').innerText = stats.modified;
+        }
+
+        // Render Column Difference Analytics Bars
+        function renderColumnAnalytics() {
+            const container = document.getElementById('columnBarsContainer');
+            container.innerHTML = '';
+            const stats = state.comparisonResult.columnDiffStats;
+            const totalMod = state.comparisonResult.stats.modified || 1;
+
+            Object.keys(stats).forEach(col => {
+                const count = stats[col];
+                const pct = Math.round((count / totalMod) * 100);
+
+                const bar = document.createElement('div');
+                bar.className = "bg-gray-50 dark:bg-gray-700/50 p-2 rounded border border-gray-200 dark:border-gray-700 text-[11px]";
+                bar.innerHTML = `
+                    <div class="flex justify-between font-medium mb-1 truncate">
+                        <span class="truncate" title="${col}">${escapeHtml(col)}</span>
+                        <span class="text-amber-600 dark:text-amber-400 font-bold">${count}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-amber-500 h-1.5 rounded-full" style="width: ${pct}%"></div>
+                    </div>`;
+                container.appendChild(bar);
+            });
+        }
+
+        function setDiffFilter(filter) {
+            state.diffFilter = filter;
+            ['All', 'Diff', 'Added', 'Removed', 'Modified'].forEach(f => {
+                const btn = document.getElementById(`filterBtn${f}`);
+                if (f.toLowerCase() === filter) {
+                    btn.className = "px-2.5 py-1 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white shadow-xs font-semibold";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900";
+                }
+            });
+            applyFilters();
+        }
+
+        function setViewMode(mode) {
+            state.viewMode = mode;
+            const btnSide = document.getElementById('btnSideBySide');
+            const btnUni = document.getElementById('btnUnified');
+
+            if (mode === 'side-by-side') {
+                btnSide.className = "px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm transition flex items-center space-x-1";
+                btnUni.className = "px-3 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition flex items-center space-x-1";
+                document.getElementById('sideBySideView').classList.remove('hidden');
+                document.getElementById('unifiedView').classList.add('hidden');
+            } else {
+                btnUni.className = "px-3 py-1 text-xs font-medium rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-sm transition flex items-center space-x-1";
+                btnSide.className = "px-3 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition flex items-center space-x-1";
+                document.getElementById('sideBySideView').classList.add('hidden');
+                document.getElementById('unifiedView').classList.remove('hidden');
+            }
+        }
+
+        function applyFilters() {
+            if (!state.comparisonResult) return;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filter = state.diffFilter;
+
+            const filtered = state.comparisonResult.diffs.filter(item => {
+                if (filter === 'diff' && item.status === 'unchanged') return false;
+                if (filter === 'added' && item.status !== 'added') return false;
+                if (filter === 'removed' && item.status !== 'removed') return false;
+                if (filter === 'modified' && item.status !== 'modified') return false;
+
+                if (searchTerm) {
+                    const rowA_str = item.rowA ? Object.values(item.rowA).join(' ').toLowerCase() : '';
+                    const rowB_str = item.rowB ? Object.values(item.rowB).join(' ').toLowerCase() : '';
+                    return rowA_str.includes(searchTerm) || rowB_str.includes(searchTerm);
+                }
+                return true;
+            });
+
+            renderGrid(filtered);
+        }
+
+        // Render Data Grids with In-line Cell Reconciliation
+        function renderGrid(diffItems) {
+            const headers = state.comparisonResult.allHeaders;
+
+            const renderHeaderRow = (trElement, extraCol = '') => {
+                trElement.innerHTML = `${extraCol}<th class="px-3 py-2 font-semibold">#</th>` +
+                    headers.map(h => `<th class="px-3 py-2 font-semibold">${escapeHtml(h)}</th>`).join('');
+            };
+
+            renderHeaderRow(document.getElementById('theadA'));
+            renderHeaderRow(document.getElementById('theadB'));
+            renderHeaderRow(document.getElementById('theadUnified'), '<th class="px-3 py-2 font-semibold">Status</th>');
+
+            const tbodyA = document.getElementById('tbodyA');
+            const tbodyB = document.getElementById('tbodyB');
+            const tbodyUnified = document.getElementById('tbodyUnified');
+
+            tbodyA.innerHTML = '';
+            tbodyB.innerHTML = '';
+            tbodyUnified.innerHTML = '';
+
+            diffItems.forEach(item => {
+                const isDiff = item.status !== 'unchanged';
+
+                // Table A Row
+                const trA = document.createElement('tr');
+                trA.dataset.isDiff = isDiff;
+                if (item.status === 'removed') trA.className = "bg-red-50/70 dark:bg-red-950/40 text-red-900 dark:text-red-200 border-l-4 border-red-500";
+                else if (item.status === 'modified') trA.className = "bg-amber-50/40 dark:bg-amber-950/20";
+
+                if (item.rowA) {
+                    let tdContent = `<td class="px-3 py-2 text-gray-400 select-none">${item.idxA + 1}</td>`;
+                    headers.forEach(h => {
+                        const cell = item.cellDiffs[h];
+                        let val = cell ? cell.valA : '';
+                        val = maskIfSensitive(h, val);
+                        val = sanitizeCellValue(val);
+                        const isMod = cell && cell.modified && item.status === 'modified';
+                        const modBg = isMod ? 'bg-amber-200 dark:bg-amber-800/80 font-semibold px-1 rounded cursor-pointer hover:bg-blue-300' : '';
+                        tdContent += `<td class="px-3 py-2 whitespace-nowrap" onclick="toggleReconcileChoice('${item.key}', '${h}', 'A')">
+                            <span class="${modBg}">${escapeHtml(val)}</span>
+                        </td>`;
+                    });
+                    trA.innerHTML = tdContent;
+                } else {
+                    trA.className = "bg-gray-50/50 dark:bg-gray-800/50 italic text-gray-400";
+                    trA.innerHTML = `<td class="px-3 py-2">—</td>` + headers.map(() => `<td class="px-3 py-2">—</td>`).join('');
+                }
+                tbodyA.appendChild(trA);
+
+                // Table B Row
+                const trB = document.createElement('tr');
+                trB.dataset.isDiff = isDiff;
+                if (item.status === 'added') trB.className = "bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-l-4 border-emerald-500";
+                else if (item.status === 'modified') trB.className = "bg-amber-50/40 dark:bg-amber-950/20";
+
+                if (item.rowB) {
+                    let tdContent = `<td class="px-3 py-2 text-gray-400 select-none">${item.idxB + 1}</td>`;
+                    headers.forEach(h => {
+                        const mappedH = state.columnMappings[h] || h;
+                        const cell = item.cellDiffs[h];
+                        let val = cell ? cell.valB : '';
+                        val = maskIfSensitive(mappedH, val);
+                        val = sanitizeCellValue(val);
+                        const isMod = cell && cell.modified && item.status === 'modified';
+                        const modBg = isMod ? 'bg-amber-200 dark:bg-amber-800/80 font-semibold px-1 rounded cursor-pointer hover:bg-blue-300' : '';
+                        tdContent += `<td class="px-3 py-2 whitespace-nowrap" onclick="toggleReconcileChoice('${item.key}', '${h}', 'B')">
+                            <span class="${modBg}">${escapeHtml(val)}</span>
+                        </td>`;
+                    });
+                    trB.innerHTML = tdContent;
+                } else {
+                    trB.className = "bg-gray-50/50 dark:bg-gray-800/50 italic text-gray-400";
+                    trB.innerHTML = `<td class="px-3 py-2">—</td>` + headers.map(() => `<td class="px-3 py-2">—</td>`).join('');
+                }
+                tbodyB.appendChild(trB);
+
+                // Unified Table Row
+                const trU = document.createElement('tr');
+                let statusBadge = '';
+                if (item.status === 'added') {
+                    trU.className = "bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200";
+                    statusBadge = '<span class="px-2 py-0.5 text-[10px] bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-100 rounded font-bold">+ ADDED</span>';
+                } else if (item.status === 'removed') {
+                    trU.className = "bg-red-50/60 dark:bg-red-950/30 text-red-900 dark:text-red-200";
+                    statusBadge = '<span class="px-2 py-0.5 text-[10px] bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-100 rounded font-bold">- REMOVED</span>';
+                } else if (item.status === 'modified') {
+                    trU.className = "bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200";
+                    statusBadge = '<span class="px-2 py-0.5 text-[10px] bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-100 rounded font-bold">~ MODIFIED</span>';
+                } else {
+                    statusBadge = '<span class="px-2 py-0.5 text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded font-bold">UNCHANGED</span>';
+                }
+
+                let uContent = `<td class="px-3 py-2 whitespace-nowrap">${statusBadge}</td>`;
+                uContent += `<td class="px-3 py-2 text-gray-400 select-none">${item.idxB !== null ? item.idxB + 1 : item.idxA + 1}</td>`;
+                headers.forEach(h => {
+                    const cell = item.cellDiffs[h];
+                    if (item.status === 'modified' && cell.modified) {
+                        const valA = sanitizeCellValue(maskIfSensitive(h, cell.valA));
+                        const valB = sanitizeCellValue(maskIfSensitive(h, cell.valB));
+                        uContent += `<td class="px-3 py-2 whitespace-nowrap">
+                            <span class="line-through text-red-500 mr-1">${escapeHtml(valA)}</span>
+                            <span class="text-emerald-600 font-bold">${escapeHtml(valB)}</span>
+                        </td>`;
+                    } else {
+                        const rawVal = item.rowB ? item.rowB[h] : item.rowA[h];
+                        const val = sanitizeCellValue(maskIfSensitive(h, rawVal));
+                        uContent += `<td class="px-3 py-2 whitespace-nowrap">${escapeHtml(val)}</td>`;
+                    }
+                });
+                trU.innerHTML = uContent;
+                tbodyUnified.appendChild(trU);
+            });
+        }
+
+        // Cell Reconciliation Choice Selection
+        function toggleReconcileChoice(key, col, choice) {
+            if (!state.reconciledSelections[key]) state.reconciledSelections[key] = {};
+            state.reconciledSelections[key][col] = choice;
+
+            const count = Object.keys(state.reconciledSelections).length;
+            document.getElementById('reconciledCountBadge').innerText = `${count} manual reconciliations made`;
+        }
+
+        // Export Reconciled Merged CSV Dataset
+        function exportReconciledCSV() {
+            if (!state.comparisonResult) return;
+            const diffs = state.comparisonResult.diffs;
+            const headers = state.comparisonResult.allHeaders;
+
+            let mergedRows = [];
+
+            diffs.forEach(item => {
+                let finalRow = {};
+                if (item.status === 'added') {
+                    headers.forEach(h => finalRow[h] = item.rowB[h] || '');
+                } else if (item.status === 'removed') {
+                    headers.forEach(h => finalRow[h] = item.rowA[h] || '');
+                } else {
+                    headers.forEach(h => {
+                        const choice = (state.reconciledSelections[item.key] && state.reconciledSelections[item.key][h]) || 'B';
+                        finalRow[h] = choice === 'A' ? item.rowA[h] : item.rowB[h];
+                    });
+                }
+                mergedRows.push(finalRow);
+            });
+
+            const csv = Papa.unparse(mergedRows);
+            downloadFile(csv, 'reconciled_merged_data.csv', 'text/csv');
+        }
+
+        // Copy Markdown Diff Summary for Slack/GitHub
+        function copyMarkdownSummary() {
+            if (!state.comparisonResult) return;
+            const stats = state.comparisonResult.stats;
+
+            const md = `### 📊 CSV Diff Summary Report
+- **Baseline File:** ${state.parsedA.filename} (${stats.totalA} rows)
+- **Modified File:** ${state.parsedB.filename} (${stats.totalB} rows)
+- **Similarity Index:** ${stats.similarity}%
+- **Changes:**
+  - 🟩 **Added:** ${stats.added}
+  - shell **Removed:** ${stats.removed}
+  - 🟧 **Modified:** ${stats.modified}
+  - ⬜ **Unchanged:** ${stats.unchanged}`;
+
+            navigator.clipboard.writeText(md).then(() => alert('Markdown summary copied to clipboard!'));
+        }
+
+        // Column Alignment Mapper Modal Logic
+        function openColumnMapper() {
+            if (!state.parsedA || !state.parsedB) return;
+            const container = document.getElementById('mapperContainer');
+            container.innerHTML = '';
+
+            const headersA = state.parsedA.headers;
+            const headersB = state.parsedB.headers;
+
+            headersB.forEach(headerB => {
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between space-x-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded";
+
+                let optionsHtml = `<option value="">-- Match with Baseline (A) --</option>`;
+                headersA.forEach(headerA => {
+                    const selected = state.columnMappings[headerB] === headerA || headerA === headerB ? 'selected' : '';
+                    optionsHtml += `<option value="${headerA}" ${selected}>${headerA}</option>`;
+                });
+
+                row.innerHTML = `
+                    <span class="font-medium truncate flex-1">${escapeHtml(headerB)} (File B)</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-gray-400"></i>
+                    <select id="map_${headerB}" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 flex-1">
+                        ${optionsHtml}
+                    </select>`;
+                container.appendChild(row);
+            });
+
+            lucide.createIcons();
+            document.getElementById('columnMapperModal').classList.remove('hidden');
+        }
+
+        function closeColumnMapper() {
+            document.getElementById('columnMapperModal').classList.add('hidden');
+        }
+
+        function applyColumnMappings() {
+            const headersB = state.parsedB.headers;
+            headersB.forEach(headerB => {
+                const select = document.getElementById(`map_${headerB}`);
+                if (select && select.value) {
+                    state.columnMappings[headerB] = select.value;
+                }
+            });
+            closeColumnMapper();
+            triggerComparison();
+        }
+
+        // Synchronized Scrolling between Side-by-Side Tables
+        function syncScroll(source) {
+            if (state.isSyncingScroll) return;
+            state.isSyncingScroll = true;
+
+            const containerA = document.getElementById('scrollContainerA');
+            const containerB = document.getElementById('scrollContainerB');
+
+            if (source === 'A') {
+                containerB.scrollTop = containerA.scrollTop;
+                containerB.scrollLeft = containerA.scrollLeft;
+            } else {
+                containerA.scrollTop = containerB.scrollTop;
+                containerA.scrollLeft = containerB.scrollLeft;
+            }
+
+            requestAnimationFrame(() => state.isSyncingScroll = false);
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Demo Sample Generator
+        function loadSampleData() {
+            const sampleA = [
+                { id: "101", name: "Alice Smith", role: "Developer", department: "Engineering", salary: "85000.00", user_email: "alice@company.com" },
+                { id: "102", name: "Bob Jones", role: "Designer", department: "UI/UX", salary: "75000.00", user_email: "bob@company.com" },
+                { id: "103", name: "Charlie Brown", role: "Product Owner", department: "Product", salary: "92000.00", user_email: "charlie@company.com" },
+                { id: "104", name: "Diana Prince", role: "QA Lead", department: "Engineering", salary: "80000.00", user_email: "diana@company.com" }
+            ];
+
+            const sampleB = [
+                { id: "101", name: "Alice Smith", role: "Senior Developer", department: "Engineering", salary: "85000.04", user_email: "alice@company.com" }, // Modified role + small salary floating change
+                { id: "102", name: "Bob Jones", role: "Designer", department: "UI/UX", salary: "75000.00", user_email: "bob@company.com" }, // Unchanged
+                { id: "104", name: "Diana Prince", role: "QA Lead", department: "Engineering", salary: "80000.00", user_email: "diana@company.com" }, // Unchanged
+                { id: "105", name: "Fiona Gallagher", role: "Data Analyst", department: "BI", salary: "78000.00", user_email: "fiona@company.com" } // Added
+            ];
+
+            state.parsedA = { filename: "Employees_2025.csv", headers: Object.keys(sampleA[0]), data: sampleA };
+            state.parsedB = { filename: "Employees_2026.csv", headers: Object.keys(sampleB[0]), data: sampleB };
+
+            document.getElementById('fileAName').innerText = "Employees_2025.csv";
+            document.getElementById('fileAInfo').innerText = "4 rows • 6 cols";
+            document.getElementById('fileBName').innerText = "Employees_2026.csv";
+            document.getElementById('fileBInfo').innerText = "4 rows • 6 cols";
+
+            state.selectedKeys = ['id'];
+            checkFilesReady();
+        }
+
+        function exportDiffReport(format) {
+            if (!state.comparisonResult) return;
+            const diffs = state.comparisonResult.diffs;
+            const headers = state.comparisonResult.allHeaders;
+
+            if (format === 'csv') {
+                let csvRows = [['Change_Type', 'Key_Identifier', 'Column_Name', 'Baseline_Value_A', 'Modified_Value_B']];
+
+                diffs.forEach(item => {
+                    if (item.status === 'added') {
+                        csvRows.push(['ADDED', item.key, 'ALL', '', JSON.stringify(item.rowB)]);
+                    } else if (item.status === 'removed') {
+                        csvRows.push(['REMOVED', item.key, 'ALL', JSON.stringify(item.rowA), '']);
+                    } else if (item.status === 'modified') {
+                        headers.forEach(h => {
+                            const cell = item.cellDiffs[h];
+                            if (cell && cell.modified) {
+                                csvRows.push(['MODIFIED', item.key, h, sanitizeCellValue(cell.valA || ''), sanitizeCellValue(cell.valB || '')]);
+                            }
+                        });
+                    }
+                });
+
+                const csvContent = Papa.unparse(csvRows);
+                downloadFile(csvContent, 'diff_summary_report.csv', 'text/csv');
+            }
+        }
+
+        function downloadFile(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
